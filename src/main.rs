@@ -200,6 +200,7 @@ fn main() {
     };
 
     if let Err(err) = res {
-        println!("error occured: {}", err);
+        eprintln!("error occured: {}", err);
+        std::process::exit(1);
     }
 }
