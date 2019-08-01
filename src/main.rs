@@ -4,10 +4,8 @@ extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
 
-extern crate regex;
 extern crate termcolor;
 
-use regex::Regex;
 use std::collections::HashMap;
 use std::error::Error;
 use std::io::Write;
@@ -29,7 +27,7 @@ where
     Ok(serde_json::from_reader(file)?)
 }
 
-fn scripts(pattern: &Option<String>) -> Result<(), Box<dyn Error>> {
+fn scripts() -> Result<(), Box<dyn Error>> {
     #[derive(Deserialize)]
     struct Package {
         name: String,
@@ -42,17 +40,7 @@ fn scripts(pattern: &Option<String>) -> Result<(), Box<dyn Error>> {
     let package = read_package::<Package>("package.json")?;
 
     let sorted_scripts = {
-        let mut scripts: Vec<(String, String)> = match pattern {
-            Some(pattern) => {
-                let pattern = Regex::new(&pattern)?;
-                package
-                    .scripts
-                    .into_iter()
-                    .filter(|(s, _)| pattern.is_match(s))
-                    .collect()
-            }
-            None => package.scripts.into_iter().collect(),
-        };
+        let mut scripts: Vec<(String, String)> = package.scripts.into_iter().collect();
         scripts.sort_unstable_by(|(a, _), (b, _)| a.cmp(b));
         scripts
     };
@@ -71,10 +59,10 @@ fn scripts(pattern: &Option<String>) -> Result<(), Box<dyn Error>> {
 
     if let Some(d) = package.description {
         buffer.set_color(&description_color)?;
-        write!(&mut buffer, " - {}", d);
+        write!(&mut buffer, " - {}", d)?;
     }
 
-    writeln!(&mut buffer);
+    writeln!(&mut buffer)?;
 
     for (command, instructions) in sorted_scripts {
         buffer.set_color(&script_name_color)?;
@@ -89,7 +77,7 @@ fn scripts(pattern: &Option<String>) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn deps(pattern: &Option<String>) -> Result<(), Box<dyn Error>> {
+fn deps() -> Result<(), Box<dyn Error>> {
     #[derive(Deserialize)]
     struct RootPackage {
         name: String,
@@ -109,39 +97,33 @@ fn deps(pattern: &Option<String>) -> Result<(), Box<dyn Error>> {
 
     let package = read_package::<RootPackage>("package.json")?;
 
-    let search = match &pattern {
-        Some(p) => Some(Regex::new(p)?),
-        None => None,
-    };
-
     fn fetch_deps(
-        deps: &HashMap<String, String>,
-        search: &Option<Regex>,
+        deps: &HashMap<String, String>
     ) -> Vec<(String, String, Option<String>)> {
         let mut deps: Vec<(String, String, Option<String>)> = deps
             .into_iter()
-            .filter(|(n, _)| {
-                if let Some(p) = &search {
-                    return p.is_match(n);
-                };
-                true
-            })
             .map(
-                |(n, v)| -> Result<(String, String, Option<String>), Box<dyn Error>> {
+                |(n, v)| -> Option<(String, String, Option<String>)> {
                     let package =
-                        read_package::<DepPackage>(&format!("node_modules/{}/package.json", n))?;
+                        read_package::<DepPackage>(&format!("node_modules/{}/package.json", n));
 
-                    Ok((package.name, v.to_string(), package.description))
+                    match package {
+                        Ok(package) => Some((package.name, v.to_string(), package.description)),
+                        Err(e) => {
+                            println!("error reading node_modules/{}/package.json: {}", n, e);
+                            None
+                        },
+                    }
                 },
             )
-            .filter_map(|x| x.ok())
+            .filter_map(|x| x )
             .collect();
         deps.sort_unstable_by(|(a, _, _), (b, _, _)| a.cmp(b));
         deps
     }
 
-    let deps = fetch_deps(&package.dependencies, &search);
-    let dev_deps = fetch_deps(&package.dev_dependencies, &search);
+    let deps = fetch_deps(&package.dependencies);
+    let dev_deps = fetch_deps(&package.dev_dependencies);
 
     let mut name_color = color(Color::White);
     name_color.set_bold(true);
@@ -160,10 +142,10 @@ fn deps(pattern: &Option<String>) -> Result<(), Box<dyn Error>> {
 
     if let Some(d) = package.description {
         buffer.set_color(&description_color)?;
-        write!(&mut buffer, " - {}", d);
+        write!(&mut buffer, " - {}", d)?;
     }
 
-    writeln!(&mut buffer);
+    writeln!(&mut buffer)?;
 
     buffer.set_color(&green)?;
     writeln!(&mut buffer, "Depdencies: {}", deps.len())?;
@@ -196,21 +178,25 @@ fn deps(pattern: &Option<String>) -> Result<(), Box<dyn Error>> {
 
 fn main() {
     enum Action {
-        Scripts(Option<String>),
-        Deps(Option<String>),
+        Scripts,
+        Deps,
     }
 
     let action = {
         let mut args = std::env::args();
         match args.nth(1) {
-            Some(ref p) if p == "-d" => Action::Deps(args.nth(0)),
-            p => Action::Scripts(p),
+            Some(ref p) if p == "-d" => Action::Deps,
+            Some(ref p) => {
+                println!("unknown argument \"{}\"", p);
+                return;
+            }
+            None => Action::Scripts,
         }
     };
 
     let res = match action {
-        Action::Scripts(p) => scripts(&p),
-        Action::Deps(p) => deps(&p),
+        Action::Scripts => scripts(),
+        Action::Deps => deps(),
     };
 
     if let Err(err) = res {
