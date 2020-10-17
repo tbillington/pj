@@ -25,9 +25,23 @@ If you don't have rust, you can get the Rust installer [here](https://www.rust-l
 
 ### Usage
 
-There are two main functions currently supported by `pj`. The first and default option is to display the [npm scripts](https://docs.npmjs.com/files/package.json#scripts) available, and the second to display the [dependencies](https://docs.npmjs.com/files/package.json#dependencies).
+```
+pj 0.2.0
+Utility for quickly displaying package.json information
 
-Both options take an optional regex to filter the results.
+USAGE:
+    pj [FLAGS] [PATH]
+
+FLAGS:
+    -d, --dependencies    List dependencies instead of scripts
+    -h, --help            Prints help information
+    -V, --version         Prints version information
+
+ARGS:
+    <PATH>    The project to examine. Current directory will be used by default
+```
+
+There are two main functions currently supported by `pj`. The first and default option is to display the [npm scripts](https://docs.npmjs.com/files/package.json#scripts) available, and the second to display the [dependencies](https://docs.npmjs.com/files/package.json#dependencies).
 
 #### Displaying scripts
 
@@ -35,17 +49,8 @@ Run `pj` in the root directory containing `package.json`.
 
 ![screen shot 2019-02-18 at 5 41 33 pm](https://user-images.githubusercontent.com/2771466/52987192-4ae31400-344e-11e9-84cf-87acf3ca3d36.png)
 
-With regex
-
-![screen shot 2019-02-18 at 5 41 50 pm](https://user-images.githubusercontent.com/2771466/52987196-50d8f500-344e-11e9-8b18-1a87a61d8bd3.png)
-
-
 #### Display dependencies
 
 Run `pj -d` in the root directory containing `package.json`.
 
 ![screen shot 2019-02-18 at 5 42 13 pm](https://user-images.githubusercontent.com/2771466/52987204-55051280-344e-11e9-97c4-78bacd915edd.png)
-
-With regex
-
-![screen shot 2019-02-18 at 5 42 30 pm](https://user-images.githubusercontent.com/2771466/52987205-55051280-344e-11e9-9c7c-fb4d8184ed0d.png)
